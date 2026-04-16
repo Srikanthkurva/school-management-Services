@@ -19,25 +19,36 @@ const convertPlaceholders = (sql) => {
 };
 
 const query = async (sql, params) => {
-  sql = convertPlaceholders(sql);
-  const result = await pool.query(sql, params);
-  return [result.rows, null];
+  try {
+    sql = convertPlaceholders(sql);
+    const result = await pool.query(sql, params);
+    return [result.rows, null];
+  } catch (err) {
+    console.error('Query error:', err.message, 'SQL:', sql);
+    throw err;
+  }
 };
 
 // Wrap pool.query for PostgreSQL
 const poolQuery = async (sql, params) => {
-  sql = convertPlaceholders(sql);
-  return pool.query(sql, params);
+  try {
+    sql = convertPlaceholders(sql);
+    return pool.query(sql, params);
+  } catch (err) {
+    console.error('Pool query error:', err.message, 'SQL:', sql);
+    throw err;
+  }
 };
 
 const createTableIfNotExists = async (client, tableName, createSQL) => {
   try {
     await client.query(createSQL);
+    console.log(`✅ Created/verified table: ${tableName}`);
   } catch (err) {
     if (err.code === '42P07') {
-      // Table already exists
+      console.log(`ℹ️ Table already exists: ${tableName}`);
     } else {
-      console.warn(`Warning creating table ${tableName}:`, err.message);
+      console.warn(`⚠️ Warning creating table ${tableName}:`, err.message);
     }
   }
 };
@@ -211,25 +222,81 @@ const initializeDB = async () => {
       );
     `);
 
-    client.release();
-    console.log('✅ Database tables initialized');
-
-    // Add missing columns if they don't exist
+    // Comprehensive column migration (DO THIS BEFORE RELEASING CLIENT)
+    const addColumnIfNotExists = async (table, column, type) => {
+      try {
+        const check = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='${table}' AND column_name='${column}'`);
+        if (check.rows.length === 0) {
+          await client.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+          console.log(`✅ Added ${column} to ${table}`);
+        } else {
+          console.log(`ℹ️ ${column} exists in ${table}`);
+        }
+      } catch (e) {
+        console.log(`⚠️ Error adding ${column} to ${table}:`, e.message);
+      }
+    };
+    
+    // Debug: show existing columns
     try {
-      const checkStudents = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='students' AND column_name='user_id'`);
-      if (checkStudents.rows.length === 0) {
-        await client.query(`ALTER TABLE students ADD COLUMN user_id VARCHAR(50)`);
-        console.log('✅ Added user_id to students');
-      }
-      
-      const checkTeachers = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='teachers' AND column_name='user_id'`);
-      if (checkTeachers.rows.length === 0) {
-        await client.query(`ALTER TABLE teachers ADD COLUMN user_id VARCHAR(50)`);
-        console.log('✅ Added user_id to teachers');
-      }
-    } catch (e) {
-      console.log('Column migration:', e.message);
-    }
+      const cols = await client.query(`SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'neondb' ORDER BY table_name, ordinal_position`);
+      console.log('📋 Existing columns:', JSON.stringify(cols.rows.slice(0, 20)));
+    } catch (e) { console.log('Debug cols error:', e.message); }
+
+    // Run migrations before releasing
+
+    // Migrate students table
+    await addColumnIfNotExists('students', 'user_id', 'VARCHAR(50)');
+    await addColumnIfNotExists('students', 'name', 'VARCHAR(100)');
+    await addColumnIfNotExists('students', 'email', 'VARCHAR(100)');
+    await addColumnIfNotExists('students', 'roll_no', 'VARCHAR(20)');
+    await addColumnIfNotExists('students', 'class_name', 'VARCHAR(20)');
+    await addColumnIfNotExists('students', 'section', 'VARCHAR(10)');
+    await addColumnIfNotExists('students', 'parent_name', 'VARCHAR(100)');
+    await addColumnIfNotExists('students', 'parent_phone', 'VARCHAR(20)');
+    await addColumnIfNotExists('students', 'dob', 'DATE');
+    await addColumnIfNotExists('students', 'gender', 'VARCHAR(10)');
+    await addColumnIfNotExists('students', 'address', 'TEXT');
+    await addColumnIfNotExists('students', 'admission_date', 'DATE');
+    await addColumnIfNotExists('students', 'total_fees', 'DECIMAL(10,2)');
+    await addColumnIfNotExists('students', 'paid_fees', 'DECIMAL(10,2)');
+    await addColumnIfNotExists('students', 'is_active', 'BOOLEAN DEFAULT TRUE');
+    await addColumnIfNotExists('students', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await addColumnIfNotExists('students', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+    // Migrate teachers table
+    await addColumnIfNotExists('teachers', 'user_id', 'VARCHAR(50)');
+    await addColumnIfNotExists('teachers', 'name', 'VARCHAR(100)');
+    await addColumnIfNotExists('teachers', 'email', 'VARCHAR(100)');
+    await addColumnIfNotExists('teachers', 'subject', 'VARCHAR(50)');
+    await addColumnIfNotExists('teachers', 'phone', 'VARCHAR(20)');
+    await addColumnIfNotExists('teachers', 'qualification', 'VARCHAR(100)');
+    await addColumnIfNotExists('teachers', 'experience', 'VARCHAR(20)');
+    await addColumnIfNotExists('teachers', 'join_date', 'DATE');
+    await addColumnIfNotExists('teachers', 'salary', 'DECIMAL(10,2)');
+    await addColumnIfNotExists('teachers', 'is_active', 'BOOLEAN DEFAULT TRUE');
+    await addColumnIfNotExists('teachers', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await addColumnIfNotExists('teachers', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+    // Migrate admissions table
+    await addColumnIfNotExists('admissions', 'class_name', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'section', 'VARCHAR(20)');
+    await addColumnIfNotExists('admissions', 'student_id', 'VARCHAR(50)');
+
+    // Create classes table if not exists
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS classes (
+          id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(50) NOT NULL,
+          section VARCHAR(10),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (e) {}
+
+    client.release();
+    console.log('✅ All columns migrated');
   } catch (err) {
     console.error('❌ Database Connection Error:', err.message);
   }
