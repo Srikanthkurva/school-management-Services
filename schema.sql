@@ -1,6 +1,5 @@
--- School Management SaaS Database Schema
-CREATE DATABASE IF NOT EXISTS school_db;
-USE school_db;
+-- School Management SaaS Database Schema (PostgreSQL)
+-- Run this in NeonDB console or via psql
 
 -- 1. Users table (Central Auth)
 CREATE TABLE IF NOT EXISTS users (
@@ -155,20 +154,7 @@ CREATE TABLE IF NOT EXISTS admissions (
     admission_type VARCHAR(50),
     father_occupation VARCHAR(100),
     status VARCHAR(20) DEFAULT 'pending',
-    admission_no VARCHAR(50) UNIQUE,
     student_id VARCHAR(50),
     reviewed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- SEED DATA (Only runs once if the IDs don't exist in a real DB, but for simple SQL scripts, you might want to comment these out if you already ran them once)
-INSERT IGNORE INTO users (id, name, email, password, role, phone) VALUES 
-('u1', 'Super Admin', 'admin@schoolsaas.com', '$2a$10$7Z7W9W9W9W9W9W9W9W9W9OuG6U6U6U6U6U6U6U6U6U6U6U6U6U6U6', 'admin', '+91 9876543210'),
-('u2', 'Dr. Priya Sharma', 'teacher@schoolsaas.com', '$2a$10$7Z7W9W9W9W9W9W9W9W9W9OuG6U6U6U6U6U6U6U6U6U6U6U6U6U6U6', 'teacher', '+91 9876543211'),
-('u3', 'Rahul Verma', 'student@schoolsaas.com', '$2a$10$7Z7W9W9W9W9W9W9W9W9W9OuG6U6U6U6U6U6U6U6U6U6U6U6U6U6U6', 'student', '+91 9876543212');
-
-INSERT IGNORE INTO teachers (id, user_id, subject, qualification, experience, salary, join_date) VALUES 
-('t1', 'u2', 'Mathematics', 'M.Sc, B.Ed', '8 years', 65000.00, '2024-01-05');
-
-INSERT IGNORE INTO students (id, user_id, roll_no, class_name, section, parent_name, parent_phone, dob, gender, total_fees, paid_fees) VALUES 
-('s1', 'u3', 'SC2024001', '10A', 'A', 'Rajesh Verma', '+91 9876543213', '2008-05-15', 'Male', 85000.00, 60000.00);
