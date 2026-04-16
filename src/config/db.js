@@ -67,6 +67,7 @@ const initializeDB = async () => {
     await createTableIfNotExists(client, 'students', `
       CREATE TABLE IF NOT EXISTS students (
         id VARCHAR(50) PRIMARY KEY,
+        user_id VARCHAR(50),
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         roll_no VARCHAR(20) UNIQUE NOT NULL,
@@ -87,6 +88,7 @@ const initializeDB = async () => {
     await createTableIfNotExists(client, 'teachers', `
       CREATE TABLE IF NOT EXISTS teachers (
         id VARCHAR(50) PRIMARY KEY,
+        user_id VARCHAR(50),
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         subject VARCHAR(50) NOT NULL,
@@ -211,6 +213,23 @@ const initializeDB = async () => {
 
     client.release();
     console.log('✅ Database tables initialized');
+
+    // Add missing columns if they don't exist
+    try {
+      const checkStudents = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='students' AND column_name='user_id'`);
+      if (checkStudents.rows.length === 0) {
+        await client.query(`ALTER TABLE students ADD COLUMN user_id VARCHAR(50)`);
+        console.log('✅ Added user_id to students');
+      }
+      
+      const checkTeachers = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='teachers' AND column_name='user_id'`);
+      if (checkTeachers.rows.length === 0) {
+        await client.query(`ALTER TABLE teachers ADD COLUMN user_id VARCHAR(50)`);
+        console.log('✅ Added user_id to teachers');
+      }
+    } catch (e) {
+      console.log('Column migration:', e.message);
+    }
   } catch (err) {
     console.error('❌ Database Connection Error:', err.message);
   }
