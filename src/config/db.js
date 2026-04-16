@@ -11,6 +11,25 @@ const pool = new Pool({
   }
 });
 
+const convertPlaceholders = (sql) => {
+  let paramIndex = 1;
+  sql = sql.replace(/\?/g, () => `$${paramIndex++}`);
+  sql = sql.replace(/NOW\(\)/gi, 'CURRENT_TIMESTAMP');
+  return sql;
+};
+
+const query = async (sql, params) => {
+  sql = convertPlaceholders(sql);
+  const result = await pool.query(sql, params);
+  return [result.rows, null];
+};
+
+// Wrap pool.query for PostgreSQL
+const poolQuery = async (sql, params) => {
+  sql = convertPlaceholders(sql);
+  return pool.query(sql, params);
+};
+
 const createTableIfNotExists = async (client, tableName, createSQL) => {
   try {
     await client.query(createSQL);
@@ -199,4 +218,4 @@ const initializeDB = async () => {
 
 initializeDB();
 
-module.exports = pool;
+module.exports = { query, pool: poolQuery, originalPool: pool };

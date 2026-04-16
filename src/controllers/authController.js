@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../config/db');
+const db = require('../config/db').query;
 const { users: mockUsers, permissions } = require('../data/mockData');
 
 const jwtSecret = process.env.JWT_SECRET || 'your_super_secret_jwt_key_12345';
