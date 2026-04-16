@@ -218,4 +218,10 @@ const initializeDB = async () => {
 
 initializeDB();
 
-module.exports = { query, pool: poolQuery, originalPool: pool };
+const db = {
+  query,
+  pool: poolQuery,
+  originalPool: pool
+};
+
+module.exports = db;
