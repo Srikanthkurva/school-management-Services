@@ -36,43 +36,7 @@ exports.submitEnquiry = async (req, res) => {
          email || null,
       ]);
 
-      // 3. Send Email
-      const recipients = [];
-      if (process.env.ADMIN_EMAIL) recipients.push(process.env.ADMIN_EMAIL);
-      if (email) recipients.push(email);
-
-      const mailOptions = {
-         from: '"Sri Chaitanya Schools" <no-reply@schoolsaas.com>',
-         to: recipients.join(','),
-         subject: `New Admission Enquiry - ${childName}`,
-         html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
-               <h2 style="color: #1a237e; border-bottom: 2px solid #e91e63; padding-bottom: 10px;">New Admission Enquiry</h2>
-               <p style="font-size: 16px;"><strong>Academic Year:</strong> ${academicYear}</p>
-               <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
-                  <h3 style="margin-top: 0; color: #1a237e;">Child Details</h3>
-                  <p><strong>Name:</strong> ${childName}</p>
-                  <p><strong>Grade:</strong> ${grade}</p>
-                  <p><strong>Gender:</strong> ${gender}</p>
-               </div>
-               <div style="margin-top: 20px; background: #fff; padding: 15px; border: 1px solid #eee;">
-                  <h3 style="margin-top: 0; color: #1a237e;">Parent/Contact Details</h3>
-                  <p><strong>Name:</strong> ${parentName}</p>
-                  <p><strong>Mobile:</strong> ${mobile}</p>
-                  <p><strong>Email:</strong> ${email}</p>
-               </div>
-               <div style="margin-top: 20px;">
-                  <h3 style="margin-top: 0; color: #1a237e;">Campus Preferences</h3>
-                  <p><strong>School:</strong> ${school}</p>
-                  <p><strong>City:</strong> ${city}, ${state}</p>
-                  <p><strong>Board:</strong> ${board}</p>
-               </div>
-               <p style="margin-top: 30px; font-size: 12px; color: #888;">This is an automated notification from the School Management Platform.</p>
-            </div>
-         `
-      };
-
-      // Attempt to send email. If SMTP not configured, create Ethereal test account for dev.
+      // 3. Send Emails
       try {
          let transport;
          if (process.env.SMTP_HOST && process.env.SMTP_USER) {
@@ -83,7 +47,6 @@ exports.submitEnquiry = async (req, res) => {
                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
          } else {
-            console.log('No SMTP configured — creating Ethereal test account for email preview');
             const testAccount = await nodemailer.createTestAccount();
             transport = nodemailer.createTransport({
                host: 'smtp.ethereal.email',
@@ -93,12 +56,63 @@ exports.submitEnquiry = async (req, res) => {
             });
          }
 
-         const info = await transport.sendMail(mailOptions);
-         console.log('Enquiry Notification Email Sent. MessageId:', info.messageId);
-         const preview = nodemailer.getTestMessageUrl(info);
-         if (preview) console.log('Preview email at:', preview);
+         // 1. Parent Confirmation Email
+         const parentMailOptions = {
+            from: '"St. Martins Group of Schools" <info@stmartinsgroup.com>',
+            to: email,
+            subject: 'Admission Enquiry Received — St. Martins Group of Schools',
+            html: `
+               <div style="font-family: Arial, Helvetica, sans-serif; max-width:600px;margin:auto;border-radius:12px;overflow:hidden;border:1px solid #e6e9ee;">
+                  <div style="background:#0f172a;padding:28px;color:#fff;text-align:center;">
+                     <h2 style="margin:0;font-size:20px;letter-spacing:1px;">Enquiry Received</h2>
+                  </div>
+                  <div style="padding:24px;background:#fff;color:#0f172a;">
+                     <p style="margin:0 0 12px 0;font-size:15px;">Dear ${parentName || 'Parent'},</p>
+                     <p style="margin:0 0 12px 0;color:#475569;">Thank you for your interest in <strong>St. Martins Group of Schools</strong>. We have received your admission enquiry for <strong>${childName}</strong> (Grade: ${grade}).</p>
+                     <p style="margin:0 0 12px 0;color:#475569;">Our relationship manager will get in touch with you shortly at <strong>${mobile}</strong> to discuss the next steps and answer any questions you may have.</p>
+                     <div style="margin-top:18px;padding:16px;background:#f8fafc;border-radius:8px;border:1px solid #eef2ff;">
+                        <p style="margin:0;font-size:13px;color:#475569;">Enquiry ID: <strong>${enquiryId}</strong></p>
+                     </div>
+                     <p style="margin-top:16px;font-size:13px;color:#64748b;">We look forward to welcoming you to our campus.</p>
+                  </div>
+                  <div style="padding:12px;text-align:center;background:#f8fafc;color:#94a3b8;font-size:12px;">St. Martins Group of Schools</div>
+               </div>
+            `
+         };
+
+         // 2. Admin Notification Email
+         const adminMailOptions = {
+            from: '"St. Martins Group of Schools" <system@stmartinsgroup.com>',
+            to: process.env.ADMIN_EMAIL || 'admin@stmartinsgroup.com',
+            subject: `New Admission Enquiry: ${childName}`,
+            html: `
+               <div style="font-family: Arial, Helvetica, sans-serif; max-width:600px;margin:auto;border-radius:12px;overflow:hidden;border:1px solid #e6e9ee;">
+                  <div style="background:#8b0000;padding:28px;color:#fff;text-align:center;">
+                     <h2 style="margin:0;font-size:20px;letter-spacing:1px;">New Enquiry Alert</h2>
+                  </div>
+                  <div style="padding:24px;background:#fff;color:#0f172a;">
+                     <p style="margin:0 0 12px 0;font-weight:bold;">Enquiry Details:</p>
+                     <table style="width:100%;font-size:14px;border-collapse:collapse;">
+                        <tr><td style="padding:8px 0;color:#64748b;width:140px;">Child Name:</td><td style="padding:8px 0;font-weight:bold;">${childName}</td></tr>
+                        <tr><td style="padding:8px 0;color:#64748b;">Grade:</td><td style="padding:8px 0;font-weight:bold;">${grade}</td></tr>
+                        <tr><td style="padding:8px 0;color:#64748b;">School Campus:</td><td style="padding:8px 0;font-weight:bold;">${school}</td></tr>
+                        <tr><td style="padding:8px 0;color:#64748b;">Parent Name:</td><td style="padding:8px 0;font-weight:bold;">${parentName}</td></tr>
+                        <tr><td style="padding:8px 0;color:#64748b;">Contact:</td><td style="padding:8px 0;font-weight:bold;">${mobile} / ${email}</td></tr>
+                     </table>
+                  </div>
+                  <div style="padding:12px;text-align:center;background:#f8fafc;color:#94a3b8;font-size:12px;">St. Martins Group of Schools — Enquiry Notification</div>
+               </div>
+            `
+         };
+
+         await Promise.all([
+            transport.sendMail(parentMailOptions),
+            transport.sendMail(adminMailOptions)
+         ]);
+
+         console.log('Enquiry notifications sent successfully');
       } catch (mailErr) {
-         console.error('Failed to send enquiry notification email:', mailErr);
+         console.error('Failed to send enquiry notification emails:', mailErr);
       }
 
       res.status(200).json({ 

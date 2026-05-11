@@ -79,17 +79,19 @@ const initializeDB = async () => {
       CREATE TABLE IF NOT EXISTS students (
         id VARCHAR(50) PRIMARY KEY,
         user_id VARCHAR(50),
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        roll_no VARCHAR(20) UNIQUE NOT NULL,
-        class_name VARCHAR(10) NOT NULL,
-        section VARCHAR(10) NOT NULL,
+        name VARCHAR(100),
+        email VARCHAR(100),
+        roll_no VARCHAR(50) UNIQUE,
+        class_name VARCHAR(50),
+        section VARCHAR(20),
         parent_name VARCHAR(100),
         parent_phone VARCHAR(20),
         dob DATE,
-        gender VARCHAR(10),
+        gender VARCHAR(20),
         address TEXT,
         admission_date DATE,
+        total_fees DECIMAL(10, 2) DEFAULT 0,
+        paid_fees DECIMAL(10, 2) DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -136,20 +138,33 @@ const initializeDB = async () => {
     await createTableIfNotExists(client, 'admissions', `
       CREATE TABLE IF NOT EXISTS admissions (
         id VARCHAR(50) PRIMARY KEY,
+        admission_no VARCHAR(50) UNIQUE,
         academic_year VARCHAR(20),
-        class_name VARCHAR(50),
+        board VARCHAR(50),
+        state VARCHAR(50),
+        city VARCHAR(50),
         school VARCHAR(100),
-        child_name VARCHAR(100),
+        class_name VARCHAR(20),
+        orientation VARCHAR(50),
+        section VARCHAR(20),
+        student_type VARCHAR(50),
         first_name VARCHAR(100),
         last_name VARCHAR(100),
-        parent_name VARCHAR(100),
-        parent_email VARCHAR(100),
+        dob DATE,
+        gender VARCHAR(20),
+        father_name VARCHAR(100),
+        mother_name VARCHAR(100),
         parent_mobile VARCHAR(20),
+        parent_email VARCHAR(100),
+        aadhaar_no VARCHAR(20),
+        address TEXT,
+        quota VARCHAR(50),
+        admission_type VARCHAR(50),
+        father_occupation VARCHAR(100),
         status VARCHAR(20) DEFAULT 'pending',
-        admission_no VARCHAR(50),
         student_id VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        reviewed_at TIMESTAMP NULL
+        reviewed_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -222,6 +237,46 @@ const initializeDB = async () => {
       );
     `);
 
+    await createTableIfNotExists(client, 'club_requests', `
+      CREATE TABLE IF NOT EXISTS club_requests (
+        id VARCHAR(50) PRIMARY KEY,
+        student_name VARCHAR(100) NOT NULL,
+        grade VARCHAR(20) NOT NULL,
+        club_name VARCHAR(100) NOT NULL,
+        club_vision TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await createTableIfNotExists(client, 'contact_messages', `
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        phone VARCHAR(20),
+        subject VARCHAR(100),
+        message TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'unread',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await createTableIfNotExists(client, 'teacher_requests', `
+      CREATE TABLE IF NOT EXISTS teacher_requests (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        subject VARCHAR(100),
+        qualification VARCHAR(255),
+        experience VARCHAR(100),
+        message TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Comprehensive column migration (DO THIS BEFORE RELEASING CLIENT)
     const addColumnIfNotExists = async (table, column, type) => {
       try {
@@ -249,17 +304,20 @@ const initializeDB = async () => {
     await addColumnIfNotExists('students', 'user_id', 'VARCHAR(50)');
     await addColumnIfNotExists('students', 'name', 'VARCHAR(100)');
     await addColumnIfNotExists('students', 'email', 'VARCHAR(100)');
-    await addColumnIfNotExists('students', 'roll_no', 'VARCHAR(20)');
-    await addColumnIfNotExists('students', 'class_name', 'VARCHAR(20)');
-    await addColumnIfNotExists('students', 'section', 'VARCHAR(10)');
-    await addColumnIfNotExists('students', 'parent_name', 'VARCHAR(100)');
-    await addColumnIfNotExists('students', 'parent_phone', 'VARCHAR(20)');
-    await addColumnIfNotExists('students', 'dob', 'DATE');
-    await addColumnIfNotExists('students', 'gender', 'VARCHAR(10)');
-    await addColumnIfNotExists('students', 'address', 'TEXT');
-    await addColumnIfNotExists('students', 'admission_date', 'DATE');
-    await addColumnIfNotExists('students', 'total_fees', 'DECIMAL(10,2)');
-    await addColumnIfNotExists('students', 'paid_fees', 'DECIMAL(10,2)');
+    await addColumnIfNotExists('students', 'roll_no', 'VARCHAR(50)');
+    await addColumnIfNotExists('students', 'class_name', 'VARCHAR(50)');
+    await addColumnIfNotExists('students', 'section', 'VARCHAR(20)');
+    await addColumnIfNotExists('students', 'total_fees', 'DECIMAL(10,2) DEFAULT 0');
+    await addColumnIfNotExists('students', 'paid_fees', 'DECIMAL(10,2) DEFAULT 0');
+    
+    // Fix legacy constraints
+    try { await client.query('ALTER TABLE students ALTER COLUMN name DROP NOT NULL'); } catch (e) {}
+    try { await client.query('ALTER TABLE students ALTER COLUMN email DROP NOT NULL'); } catch (e) {}
+    try { await client.query('ALTER TABLE students ALTER COLUMN roll_no DROP NOT NULL'); } catch (e) {}
+    try { await client.query('ALTER TABLE students ALTER COLUMN class_name DROP NOT NULL'); } catch (e) {}
+    try { await client.query('ALTER TABLE students ALTER COLUMN section DROP NOT NULL'); } catch (e) {}
+    try { await client.query('ALTER TABLE students ALTER COLUMN "class" DROP NOT NULL'); } catch (e) {}
+    
     await addColumnIfNotExists('students', 'is_active', 'BOOLEAN DEFAULT TRUE');
     await addColumnIfNotExists('students', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     await addColumnIfNotExists('students', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
@@ -279,9 +337,24 @@ const initializeDB = async () => {
     await addColumnIfNotExists('teachers', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
 
     // Migrate admissions table
-    await addColumnIfNotExists('admissions', 'class_name', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'admission_no', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'board', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'state', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'city', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'orientation', 'VARCHAR(50)');
     await addColumnIfNotExists('admissions', 'section', 'VARCHAR(20)');
+    await addColumnIfNotExists('admissions', 'student_type', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'dob', 'DATE');
+    await addColumnIfNotExists('admissions', 'gender', 'VARCHAR(20)');
+    await addColumnIfNotExists('admissions', 'father_name', 'VARCHAR(100)');
+    await addColumnIfNotExists('admissions', 'mother_name', 'VARCHAR(100)');
+    await addColumnIfNotExists('admissions', 'aadhaar_no', 'VARCHAR(20)');
+    await addColumnIfNotExists('admissions', 'address', 'TEXT');
+    await addColumnIfNotExists('admissions', 'quota', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'admission_type', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'father_occupation', 'VARCHAR(100)');
     await addColumnIfNotExists('admissions', 'student_id', 'VARCHAR(50)');
+    await addColumnIfNotExists('admissions', 'reviewed_at', 'TIMESTAMP NULL');
 
     // Create classes table if not exists
     try {

@@ -15,6 +15,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const enquiryRoutes = require('./routes/enquiryRoutes');
 const admissionRoutes = require('./routes/admissionRoutes');
 const contactRoutes = require('./routes/contactRoutes');
+const clubRoutes = require('./routes/clubRoutes');
+const teacherRequestRoutes = require('./routes/teacherRequestRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -48,6 +50,8 @@ app.use('/api/enquiry', enquiryRoutes);
 app.use('/api/admission', admissionRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/classes', classRoutes);
+app.use('/api/clubs', clubRoutes);
+app.use('/api/teacher-requests', teacherRequestRoutes);
 
 // 404 Handler
 app.use((req, res) => {
