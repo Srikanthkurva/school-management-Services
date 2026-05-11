@@ -9,19 +9,18 @@ const studentSelect = `
     COALESCE(u.email, '') AS email,
     COALESCE(u.phone, '') AS phone,
     u.avatar AS avatar,
-    COALESCE(u.is_active, true) AS isActive,
-    s.roll_no AS rollNo,
-    s.class_name AS class,
-    -- section removed
-    COALESCE(s.parent_name, '') AS parentName,
-    COALESCE(s.parent_phone, '') AS parentPhone,
+    COALESCE(u.is_active, true) AS is_active,
+    s.roll_no AS roll_no,
+    s.class_name AS class_name,
+    COALESCE(s.parent_name, '') AS parent_name,
+    COALESCE(s.parent_phone, '') AS parent_phone,
     s.dob,
     COALESCE(s.gender, '') AS gender,
     COALESCE(s.address, '') AS address,
-    s.admission_date AS admissionDate,
-    COALESCE(s.total_fees, 0) AS totalFees,
-    COALESCE(s.paid_fees, 0) AS paidFees,
-    u.created_at AS createdAt
+    s.admission_date AS admission_date,
+    COALESCE(s.total_fees, 0) AS total_fees,
+    COALESCE(s.paid_fees, 0) AS paid_fees,
+    u.created_at AS created_at
   FROM students s
   LEFT JOIN users u ON u.id = s.user_id
   LEFT JOIN admissions a ON a.student_id = s.id
@@ -38,21 +37,20 @@ const formatStudent = (student) => {
     email: student.email,
     phone: student.phone,
     avatar: student.avatar,
-    isActive: Boolean(student.isActive),
-    rollNo: student.rollNo,
-    class: student.class,
-    // section removed
-    parentName: student.parentName,
-    parentPhone: student.parentPhone,
+    isActive: Boolean(student.is_active),
+    rollNo: student.roll_no,
+    class: student.class_name,
+    parentName: student.parent_name,
+    parentPhone: student.parent_phone,
     dob: student.dob,
     gender: student.gender,
     address: student.address,
-    admissionDate: student.admissionDate,
-    createdAt: student.createdAt,
+    admissionDate: student.admission_date,
+    createdAt: student.created_at,
     fees: {
-      total: totalFees,
-      paid: paidFees,
-      due: Math.max(totalFees - paidFees, 0),
+      total: student.total_fees,
+      paid: student.paid_fees,
+      due: Math.max(Number(student.total_fees || 0) - Number(student.paid_fees || 0), 0),
     },
   };
 };
@@ -127,8 +125,8 @@ const createStudent = async (req, res) => {
     const { name, email, rollNo, class: cls, parentName, parentPhone, dob, gender, address } = req.body;
     
     const query = `
-      INSERT INTO students (id, name, email, rollNo, class, parentName, parentPhone, dob, gender, address, admissionDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      INSERT INTO students (id, name, email, roll_no, class_name, parent_name, parent_phone, dob, gender, address, admission_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     await db.query(query, [id, name, email, rollNo, cls, parentName, parentPhone, dob, gender, address]);
     
@@ -145,7 +143,7 @@ const updateStudent = async (req, res) => {
     const { name, email, class: cls, parentName, parentPhone, isActive } = req.body;
     const query = `
       UPDATE students 
-      SET name=?, email=?, class=?, parentName=?, parentPhone=?, isActive=? 
+      SET name=?, email=?, class_name=?, parent_name=?, parent_phone=?, is_active=? 
       WHERE id=?
     `;
     const [result] = await db.query(query, [name, email, cls, parentName, parentPhone, isActive, req.params.id]);
